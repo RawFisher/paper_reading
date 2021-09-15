@@ -1,0 +1,156 @@
+#+startup: beamer
+#+LaTeX_CLASS: beamer
+#+LaTeX_CLASS_OPTIONS: [presentation]
+#+BEAMER_THEME: Madrid
+#+OPTIONS: H:2 toc:t num:t
+#+COLUMNS: %45ITEM %10BEAMER_ENV(Env) %10BEAMER_ACT(Act) %4BEAMER_COL(Col)
+
+#+LATEX_HEADER: \usepackage{ctex}
+
+#+TITLE: Paper Reading
+#+DATE: 2021.09.14
+#+AUTHOR: 曾昭瀚
+#+EMAIL: zhaohan.zeng@my.swjtu.edu.cn
+#+LANGUAGE: en
+#+SELECT_TAGS: export
+#+EXCLUDE_TAGS: noexport
+
+* Introduction
+** Brief Info
+- *Title*: Detecting Human-Object Interaction via Fabricated Compositional Learning
+- *First author*: Zhi Hou
+- *Institutes*: The University of Sydney
+- *Conference*: CVPR 2021
+- *PDF*: [[https://arxiv.org/pdf/2103.08214.pdf]]
+- *Code*: [[https://github.com/zhihou7/FCL]]
+
+** Problem
+*** Generalized Zero-Shot HOI Detection
+    - Problem of *imbalanced learning* and *zero-shot learning*.
+    - Evaluated on both seen and unseen classes.
+    - Existing works do not foucus on generalized zero-shot HOI detection.
+
+[[./pic/Open_long-tailed_HOI_detection.png]]
+
+** Contribution
+- Generating *fake* samples for rare and unseen HOI categories on feature perspetive.
+- Designing an object fabricator to generate objects for HOI composition.
+
+[[./pic/compose_fake.png]]
+
+* Method
+** Fabricated Compositional Learning
+*** Idea
+    - Extracting a HOI instance feature to (o, v).
+    - Using a generator generates other object feature $o^{'}$ and be combined with verb feature v to ($o^{'}$, v).
+
+[[./pic/compose_fake.png]]
+
+** Framework
+*** Multitask Learning
+    - Spatial HOI branch, HOI branch, fabricated compositinal branch
+
+[[./pic/framework_overview.png]]
+
+** Spatial HOI Branch
+- Spatial feature: concatenation of human and object masks, i.e., the value in the human/object bounding box region is 1 and 0 elsewhere.
+- Concatenating spatial and human features to classify HOI.
+
+[[./pic/spatial_branch.png]]
+
+** HOI Branch
+- Concatenating object and verb features to classify HOI (classifior different from spatial branch).
+- Verb feature is extracted from union of object and human boxes.
+- Regularizing verb feature.
+
+[[./pic/HOI_branch.png]]
+
+** Fabricated Compositional Branch
+- Generating fake object features for composing new HOIs.
+- Concatenating verb and fake object features to classify HOI (classifior same as HOI branch).
+
+[[./pic/fabricated_compositional_branch.png]]
+
+** Fabricated Compositional Branch
+- Fabricator: $o^{'}=MLP(concat(obj\_emb_{j}, noise, verb)), 0<=j<N_{o}$, $N_{o}$ is the number of all different objects.
+- $noise \sim \mathcal N(0,1)$
+- Three kind of object identity: object variable (trainable), word embedding, one-hot.
+
+[[./pic/fabricator_branch.png]]
+
+** Training
+- Loss: $\mathcal L=\lambda_1\mathcal L_{hoi}+\lambda_2\mathcal L_{CL}+\lambda_3\mathcal L_{reg}+\mathcal L_{hoi\_sp}$
+- Binary cross entropy losses.
+- Verb feature contains the pose information of the object, making it difficult to jointly train with object fabricator.
+
+*** Step-Wise training strategy
+    1. Pre-training the network without the fabricator branch. ($\mathcal L_{hoi}$, $\mathcal L_{reg}$, $\mathcal L_{hoi\_sp}$)
+    2. Fixing pre-trained model and train the randomly initialized object fabricator. ($\mathcal L_{CL}$)
+    3. Jointly fine-tune all branches. ($\mathcal L$)
+
+** Inference
+- $S^c_{h,o}=s_h \cdot s_o \cdot S^c_{sp} \cdot S^c_{hoi}$
+
+[[./pic/inference.png]]
+
+* Experience
+** Zero-Shot HOI Detection
+- *HICO-DET unseen composition*. The training data contains all factors (verbs and objects) but misses the verb-object pairs.
+  - *Rare-first selection*. Selecting 120 unseen HOIs from rare preferentially.
+  - *Non-rare first selection*. Selecting 120 unseen HOIs from non-rare preferentially.
+  - Unseen(120 HOIs), Seen(480 HOIs), Full(600 HOIs).
+- *HICO-DET unseen object*. Objects in testing data do not appear in the training data.
+  - 12 objects from 80 objects and picking all HOIs containing these objects as unseen HOIs.
+  - Unseen(100 HOIs), Seen(500 HOIs), Full(600 HOIs).
+
+** Zero-Shot HOI Detection
+- Baseline method is the model without fabricated compositional branch.
+- Factorized model: replacing the HOI branch with verb and object stream.
+
+[[./pic/factorized-model.png]]
+
+** Zero-Shot HOI Detection
+[[./pic/zero-shot_result.png]]
+
+** Long-Tailed HOI Detection
+[[./pic/unbalance_result.png]]
+
+** Ablation Studies
+*** Setting
+    - Selecting 120 unseen HOIs in rare and non-rare categories.
+    - 24 rare categories and 96 non-rare categories.
+*** Fabricated Compositional Learning
+    - With fabricator can steadily improve the performance.
+    - Orthogonal to verb feature regularization.
+[[./pic/fabricator_verb_ablation.png]]
+
+** Ablation Studies
+*** Fabricator
+    - Verb regularization can slightly improve the rare and unseen performance. (row 1,3)
+    - Performance drops without verb or noise.
+    - Adding verb fabricator (verb identity, object feat and noise) is even worse.
+    - Difficult to directly generate useful verb due to complexity and abstraction.
+[[./pic/fabricator_ablation.png]]
+
+** Ablation Studies
+*** Step-Wise and One-Step
+    - Step-wise has *better* performance in *rare* and *non-rare* categories.
+    - Step-wise has *worse* performance in *unseen* categories.
+    - Step-wise has *bias* to seen categories in the first step.
+[[./pic/step-wise-one-step.png]]
+
+** Ablation Studies
+*** Quality of Detected Objects
+    - Two-stage methods suffer from massive negative proposals produced from the first stage.
+    - If detected boxes are false, cause that fabricated objects are less useful.
+[[./pic/object_detector_ablation.png]]
+
+* Conclusion
+** Conclusion
+- Design Fabricated Compostional Learning approach to compose samples for open long-tailed HOI Detection.
+- Design an object fabricator to fabricate object features.
+- Stitch the fake object features and real verb features to compose HOI samples.
+
+** Discussion
+- More semantic prior? (verbs, objects, HOIs)
+- ...
